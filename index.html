@@ -755,8 +755,31 @@ html,body{margin:0;padding:0;min-height:100vh;font-family:'Inter',-apple-system,
 </div>
 
 <script>
-/* ── CONSTANTS ── */
-const SK='ews_stock_v3', LK='ews_log_v3', UK='ews_users_v1';
+/* ── SUPABASE ── */
+const SUPA_URL='https://smyylfkstzppzpqraweo.supabase.co';
+const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNteXlsZmtzdHpwcHpwcXJhd2VvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2ODI4NzgsImV4cCI6MjA5NDI1ODg3OH0.Q2iZT_C_fAXeqPjVg7ORdg5K8Na71riWbiWEj_W-7Yg';
+const H={'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY};
+
+async function sbGet(table,query=''){
+  const r=await fetch(`${SUPA_URL}/rest/v1/${table}?${query}&order=id`,{headers:{...H,'Prefer':'return=representation'}});
+  return r.json();
+}
+async function sbInsert(table,data){
+  const r=await fetch(`${SUPA_URL}/rest/v1/${table}`,{method:'POST',headers:{...H,'Prefer':'return=representation'},body:JSON.stringify(data)});
+  return r.json();
+}
+async function sbUpdate(table,id,data){
+  const r=await fetch(`${SUPA_URL}/rest/v1/${table}?id=eq.${id}`,{method:'PATCH',headers:{...H,'Prefer':'return=representation'},body:JSON.stringify(data)});
+  return r.json();
+}
+async function sbDelete(table,id){
+  await fetch(`${SUPA_URL}/rest/v1/${table}?id=eq.${id}`,{method:'DELETE',headers:H});
+}
+async function sbUpsert(table,data){
+  const r=await fetch(`${SUPA_URL}/rest/v1/${table}`,{method:'POST',headers:{...H,'Prefer':'resolution=merge-duplicates,return=representation'},body:JSON.stringify(data)});
+  return r.json();
+}
+
 const PER=15;
 let stock=[], log=[], users=[], pg=1, scanT=null;
 let currentUser=null;
@@ -901,32 +924,52 @@ const RAW=[
 ];
 
 /* ── USERS ── */
-const DEFAULT_USERS=[{id:'u1',name:'Roberto',username:'roberto@elmo',password:'REWS101201',role:'boss'}];
-
-function loadUsers(){
-  const u=localStorage.getItem(UK);
-  users=u?JSON.parse(u):DEFAULT_USERS.map(x=>({...x}));
-  if(!u) saveUsers();
+async function loadUsers(){
+  try{
+    users=await sbGet('users','select=*');
+    if(!Array.isArray(users)||users.length===0){
+      // seed default boss
+      await sbInsert('users',{id:'u1',name:'Roberto',username:'roberto@elmo',password:'REWS101201',role:'boss'});
+      users=await sbGet('users','select=*');
+    }
+  }catch(e){console.error('loadUsers',e);}
 }
-function saveUsers(){localStorage.setItem(UK,JSON.stringify(users));}
+async function saveUsers(){
+  // handled per operation (insert/update/delete)
+}
 
 /* ── AUTH ── */
-function doLogin(){
+async function doLogin(){
   const u=document.getElementById('l-user').value.trim();
   const p=document.getElementById('l-pass').value;
-  const found=users.find(x=>x.username===u&&x.password===p);
-  if(!found){document.getElementById('login-err').classList.add('show');return;}
-  document.getElementById('login-err').classList.remove('show');
-  currentUser=found;
-  auditLog('login',null,null,`Signed in`);
-  document.getElementById('login-screen').classList.remove('show');
-  document.getElementById('main-app').style.display='grid';
-  applyRole();
-  initSidebar();
-  load(); initFilters(); renderStock(); badge(); clock(); setInterval(clock,60000); stamp();
-  const params=new URLSearchParams(window.location.search);
-  const b=params.get('bundle');
-  if(b) goBook(b.toUpperCase());
+  // show loading
+  const btn=document.querySelector('.login-btn');
+  btn.textContent='Signing in…'; btn.disabled=true;
+  try{
+    await loadUsers();
+    const found=users.find(x=>x.username===u&&x.password===p);
+    if(!found){
+      document.getElementById('login-err').classList.add('show');
+      btn.textContent='Sign in →'; btn.disabled=false;
+      return;
+    }
+    document.getElementById('login-err').classList.remove('show');
+    currentUser=found;
+    await load();
+    auditLog('login',null,null,'Signed in');
+    document.getElementById('login-screen').classList.remove('show');
+    document.getElementById('main-app').style.display='grid';
+    applyRole();
+    initSidebar();
+    initFilters(); renderStock(); badge(); clock(); setInterval(clock,60000); stamp();
+    const params=new URLSearchParams(window.location.search);
+    const b=params.get('bundle');
+    if(b) goBook(b.toUpperCase());
+  }catch(e){
+    document.getElementById('login-err').textContent='Connection error — check your internet';
+    document.getElementById('login-err').classList.add('show');
+  }
+  btn.textContent='Sign in →'; btn.disabled=false;
 }
 
 function doLogout(){
@@ -957,26 +1000,73 @@ function applyRole(){
 }
 
 /* ── DATA ── */
-function load(){
-  const s=localStorage.getItem(SK);
-  stock=s?JSON.parse(s):RAW.map(r=>({...r,location:r.location||''}));
-  if(!s) save();
-  const l=localStorage.getItem(LK); log=l?JSON.parse(l):[];
+async function load(){
+  try{
+    // Load stock
+    const s=await sbGet('stock','select=*');
+    if(!Array.isArray(s)||s.length===0){
+      // First time — seed from RAW
+      const toInsert=RAW.map(r=>({
+        id:r.id,wood:r.wood,supplier:r.supplier,grade:r.grade,
+        thick:r.thick,l:r.L,w:r.W,qty:r.qty,orig:r.orig,
+        m3:r.m3,date_in:r.dateIn,location:r.location||''
+      }));
+      await sbUpsert('stock',toInsert);
+      stock=RAW.map(r=>({...r,location:''}));
+    } else {
+      stock=s.map(r=>({
+        id:r.id,wood:r.wood,supplier:r.supplier,grade:r.grade,
+        thick:Number(r.thick),L:Number(r.l),W:Number(r.w),
+        qty:Number(r.qty),orig:Number(r.orig),m3:Number(r.m3),
+        dateIn:r.date_in,location:r.location||''
+      }));
+    }
+    // Load log
+    const l=await sbGet('audit_log','select=*&order=id.desc');
+    log=Array.isArray(l)?l.map(r=>({
+      id:r.id,time:r.time,user:r.username,userName:r.user_name,
+      type:r.type,bundle:r.bundle,detail:r.detail,note:r.note
+    })):[];
+  }catch(e){console.error('load error',e);}
 }
-function save(){localStorage.setItem(SK,JSON.stringify(stock));stamp();}
-function savelog(){localStorage.setItem(LK,JSON.stringify(log));badge();}
+
+async function saveStock(r){
+  // Update single bundle qty and location in Supabase
+  try{
+    await sbUpdate('stock',r.id,{qty:r.qty,location:r.location});
+    stamp();
+  }catch(e){console.error('saveStock',e);}
+}
+
+async function saveAllStock(){
+  // Full upsert — used only on first load / reset
+  try{
+    const toUpsert=stock.map(r=>({
+      id:r.id,wood:r.wood,supplier:r.supplier,grade:r.grade,
+      thick:r.thick,l:r.L,w:r.W,qty:r.qty,orig:r.orig,
+      m3:r.m3,date_in:r.dateIn,location:r.location||''
+    }));
+    await sbUpsert('stock',toUpsert);
+    stamp();
+  }catch(e){console.error('saveAllStock',e);}
+}
+
 function stamp(){const e=document.getElementById('sync-time');if(e)e.textContent='Synced '+new Date().toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'});}
 function badge(){const e=document.getElementById('log-badge');if(!e)return;if(log.length){e.style.display='';e.textContent=log.length;}else e.style.display='none';}
 
-function auditLog(type,bundleId,detail,note){
-  log.unshift({
+async function auditLog(type,bundleId,detail,note){
+  const entry={
     id:Date.now(),
     time:new Date().toLocaleString('en-ZA'),
-    user:currentUser?currentUser.username:'system',
-    userName:currentUser?currentUser.name:'System',
+    username:currentUser?currentUser.username:'system',
+    user_name:currentUser?currentUser.name:'System',
     type,bundle:bundleId||'',detail:detail||'',note:note||''
-  });
-  savelog();
+  };
+  // Add to local array immediately for UI
+  log.unshift({id:entry.id,time:entry.time,user:entry.username,userName:entry.user_name,type,bundle:entry.bundle,detail:entry.detail,note:entry.note});
+  badge();
+  // Save to Supabase in background
+  try{await sbInsert('audit_log',entry);}catch(e){console.error('auditLog',e);}
 }
 
 /* ── HELPERS ── */
@@ -1250,11 +1340,12 @@ function openLocModal(id){
   if(b) document.getElementById('loc-sel').value=b.location||'';
   document.getElementById('loc-modal').classList.add('show');
 }
-function saveLocation(){
+async function saveLocation(){
   const b=stock.find(r=>r.id===locBundleId); if(!b) return;
   const newLoc=document.getElementById('loc-sel').value;
   const old=b.location;
-  b.location=newLoc; save();
+  b.location=newLoc;
+  await saveStock(b);
   auditLog('loc',locBundleId,`${old||'none'} → ${newLoc||'none'}`,`Location updated`);
   closeModal('loc-modal');
   renderStock();
@@ -1270,14 +1361,16 @@ function openEditQty(id){
   document.getElementById('edit-reason').value='';
   document.getElementById('edit-modal').classList.add('show');
 }
-function saveEditQty(){
+async function saveEditQty(){
   const newQty=parseInt(document.getElementById('edit-qty').value);
   const reason=document.getElementById('edit-reason').value.trim();
   if(isNaN(newQty)||newQty<0){alert('Enter a valid quantity');return;}
   if(!reason){alert('Please enter a reason for the change');return;}
   const b=stock.find(r=>r.id===editingBundleId); if(!b) return;
   const oldQty=b.qty;
-  b.qty=newQty; b.orig=Math.max(b.orig,newQty); save();
+  b.qty=newQty; b.orig=Math.max(b.orig,newQty);
+  await sbUpdate('stock',b.id,{qty:b.qty,orig:b.orig});
+  stamp();
   auditLog('edit',editingBundleId,`${oldQty} → ${newQty}`,reason);
   closeModal('edit-modal');
   renderStock();
@@ -1437,7 +1530,7 @@ function lookupBundle(val){
   setTimeout(()=>el.scrollIntoView({behavior:'smooth',block:'start'}),50);
 }
 
-function bookOut(id){
+async function bookOut(id){
   const qty=parseInt(document.getElementById('take-qty').value)||0;
   const order=(document.getElementById('take-order').value||'').trim();
   const note=(document.getElementById('take-note').value||'').trim();
@@ -1445,7 +1538,8 @@ function bookOut(id){
   if(!order){alert('Please enter an order number');return;}
   const b=stock.find(r=>r.id===id); if(!b) return;
   if(qty>b.qty){alert('Cannot take more than available ('+b.qty+' pcs)');return;}
-  b.qty-=qty; save();
+  b.qty-=qty;
+  await saveStock(b);
   auditLog('out',id,`${qty} pcs · Order: ${order}`,note);
   document.getElementById('scan-result').innerHTML=`
     <div class="alert alert-success"><svg class="ic aic" width="16" height="16"><use href="#i-check"/></svg><div><b>${qty} pcs</b> booked out from <b>${id}</b> for order <b>${order}</b>. Remaining: <b>${b.qty} pcs</b>.</div></div>
@@ -1574,7 +1668,7 @@ function openEditUser(id){
   document.getElementById('user-modal').classList.add('show');
 }
 
-function saveUser(){
+async function saveUser(){
   const name=document.getElementById('u-name').value.trim();
   const uname=document.getElementById('u-uname').value.trim();
   const pass=document.getElementById('u-pass').value;
@@ -1584,25 +1678,29 @@ function saveUser(){
   if(pass.length<4){errEl.textContent='Password must be at least 4 characters.';errEl.style.display='block';return;}
   const dup=users.find(x=>x.username===uname&&x.id!==editingUserId);
   if(dup){errEl.textContent='Username already exists.';errEl.style.display='block';return;}
-  if(editingUserId){
-    const u=users.find(x=>x.id===editingUserId);
-    if(u){u.name=name;u.username=uname;u.password=pass;u.role=role;}
-    // update currentUser if editing self
-    if(currentUser.id===editingUserId){currentUser.name=name;currentUser.username=uname;currentUser.role=role;applyRole();}
-  } else {
-    users.push({id:'u'+Date.now(),name,username:uname,password:pass,role});
-  }
-  saveUsers();
-  closeModal('user-modal');
-  initFilters();
-  renderUsers();
+  try{
+    if(editingUserId){
+      await sbUpdate('users',editingUserId,{name,username:uname,password:pass,role});
+      const u=users.find(x=>x.id===editingUserId);
+      if(u){u.name=name;u.username=uname;u.password=pass;u.role=role;}
+      if(currentUser.id===editingUserId){currentUser.name=name;currentUser.username=uname;currentUser.role=role;applyRole();}
+    } else {
+      const newId='u'+Date.now();
+      await sbInsert('users',{id:newId,name,username:uname,password:pass,role});
+      users.push({id:newId,name,username:uname,password:pass,role});
+    }
+    closeModal('user-modal');
+    initFilters();
+    renderUsers();
+  }catch(e){errEl.textContent='Save failed — check connection.';errEl.style.display='block';}
 }
 
-function deleteUser(id){
+async function deleteUser(id){
   if(id===currentUser.id){alert("You can't delete your own account.");return;}
   if(!confirm('Delete this user?')) return;
+  await sbDelete('users',id);
   users=users.filter(x=>x.id!==id);
-  saveUsers(); renderUsers(); initFilters();
+  renderUsers(); initFilters();
 }
 
 /* ── UTILS ── */
@@ -1753,7 +1851,8 @@ function renderBarcodes(){
 }
 
 /* ── INIT ── */
-loadUsers();
+// Show login screen — Supabase loads on login
+document.getElementById('login-screen').classList.add('show');
 document.getElementById('scan-input').addEventListener('keydown',function(e){if(e.key==='Enter'){clearTimeout(scanT);lookupBundle(this.value);}});
 window.addEventListener('resize',()=>{
   const app=document.getElementById('main-app');
