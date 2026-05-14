@@ -333,7 +333,40 @@ html,body{margin:0;padding:0;min-height:100vh;font-family:'Inter',-apple-system,
 @media(max-width:600px){
   .stats{grid-template-columns:repeat(2,1fr);}
   .main{padding:14px 12px 40px;}
+  /* Hide table on mobile — use card list instead */
+  .tbl-wrap{display:none;}
+  .mobile-stock-list{display:block;}
+  /* Hide desktop filters, show simple search only */
+  .filters{grid-template-columns:1fr auto!important;}
+  .filters .sel,.filters .reset-btn{display:none;}
+  .filters .search-box{grid-column:1;}
+  .filters .reset-btn:last-child{display:inline-flex;}
 }
+@media(min-width:601px){
+  .mobile-stock-list{display:none;}
+}
+/* Mobile stock card */
+.mob-card{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--hairline);gap:10px;}
+.mob-card:last-child{border-bottom:0;}
+.mob-card:hover{background:var(--surface-2);}
+.mob-left{display:flex;flex-direction:column;gap:3px;min-width:0;}
+.mob-id{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:var(--ink);cursor:pointer;text-decoration:underline;text-decoration-style:dotted;}
+.mob-dims{font-size:12px;color:var(--ink-3);font-weight:500;}
+.mob-right{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.mob-qty{text-align:right;}
+.mob-qty-num{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;}
+.mob-qty-orig{font-size:11px;color:var(--ink-3);}
+.mob-bar{height:3px;width:48px;background:var(--surface-3);border-radius:2px;overflow:hidden;margin-top:3px;margin-left:auto;}
+.mob-bar i{display:block;height:100%;background:var(--green);border-radius:2px;}
+.mob-bar.low i{background:var(--amber);}
+.mob-bar.crit i{background:var(--red);}
+.mob-book{appearance:none;border:1px solid var(--hairline-2);background:var(--navy);color:white;font:inherit;font-size:12px;font-weight:600;padding:8px 12px;border-radius:9px;cursor:pointer;white-space:nowrap;}
+/* Mobile thick group header */
+.mob-thick-head{padding:8px 16px;background:var(--surface-2);border-bottom:1px solid var(--hairline);display:flex;align-items:center;gap:8px;}
+.mob-thick-head .tg-label{font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-3);}
+.mob-thick-head .tg-val{font-size:13px;font-weight:700;color:var(--navy);}
+.mob-thick-head .tg-count{font-size:11px;color:var(--ink-3);margin-left:auto;}
+
 @media print{
   .side,.topbar-actions,.filters,.pager,.bookout-form,.form-actions,.ibtn,.util-btn,.topbar,#login-screen{display:none!important;}
   .label-grid,.bc-label-grid{grid-template-columns:repeat(3,1fr);}
@@ -438,6 +471,10 @@ html,body{margin:0;padding:0;min-height:100vh;font-family:'Inter',-apple-system,
     <p class="msub">Boss override — manually correct the quantity for this bundle</p>
     <div class="frow"><label>New qty (pieces)</label><input type="number" id="edit-qty" min="0"></div>
     <div class="frow"><label>Reason for change</label><input type="text" id="edit-reason" placeholder="e.g. Recount after stock take"></div>
+    <div class="frow" style="margin-top:6px;padding-top:14px;border-top:1px solid var(--hairline);">
+      <label>Reorder point (pieces) <span style="font-weight:400;color:var(--ink-3);text-transform:none;letter-spacing:0;">— flag as low stock when qty reaches this number</span></label>
+      <input type="number" id="edit-reorder" min="0" placeholder="e.g. 5 — leave 0 to use default 25% rule">
+    </div>
     <div class="modal-actions">
       <button class="ibtn primary" onclick="saveEditQty()"><svg class="ic" width="13" height="13"><use href="#i-check"/></svg> Save</button>
       <button class="ibtn" onclick="closeModal('edit-modal')">Cancel</button>
@@ -589,6 +626,8 @@ html,body{margin:0;padding:0;min-height:100vh;font-family:'Inter',-apple-system,
           <tbody id="stock-tbody"></tbody>
         </table>
       </div>
+      <!-- Mobile card list -->
+      <div class="mobile-stock-list" id="mobile-stock-list"></div>
       <div class="pager" id="stock-pager"></div>
     </div>
   </div>
@@ -1018,7 +1057,8 @@ async function load(){
         id:r.id,wood:r.wood,supplier:r.supplier,grade:r.grade,
         thick:Number(r.thick),L:Number(r.l),W:Number(r.w),
         qty:Number(r.qty),orig:Number(r.orig),m3:Number(r.m3),
-        dateIn:r.date_in,location:r.location||''
+        dateIn:r.date_in,location:r.location||'',
+        reorderPoint:Number(r.reorder_point)||0
       }));
     }
     // Load log
@@ -1139,25 +1179,48 @@ function getOrig(r){
 }
 
 function getLowStockItems(){
-  // Group all bundles by wood+supplier+thick+W+L, compare combined qty vs combined baseline
-  const groups={};
+  // For bundles with a reorder point set — flag individually when qty <= reorderPoint
+  // For bundles without — group by wood+supplier+thick+W+L and use 25% of combined baseline
+  const result=[];
+  const grouped={};
+
   stock.forEach(r=>{
-    const key=`${r.wood}|${r.supplier}|${r.thick}|${r.W}|${r.L}`;
-    if(!groups[key]) groups[key]={wood:r.wood,supplier:r.supplier,thick:r.thick,W:r.W,L:r.L,qty:0,orig:0,bundles:[]};
-    groups[key].qty+=r.qty;
-    groups[key].orig+=getOrig(r);
-    groups[key].bundles.push(r.id);
+    if(r.reorderPoint>0){
+      // Individual reorder point check
+      if(r.qty<=r.reorderPoint&&r.qty>=0){
+        result.push({
+          wood:r.wood,supplier:r.supplier,thick:r.thick,W:r.W,L:r.L,
+          qty:r.qty,orig:getOrig(r),bundles:[r.id],
+          reorderPoint:r.reorderPoint,mode:'reorder'
+        });
+      }
+    } else {
+      // Group for 25% check
+      const key=`${r.wood}|${r.supplier}|${r.thick}|${r.W}|${r.L}`;
+      if(!grouped[key]) grouped[key]={wood:r.wood,supplier:r.supplier,thick:r.thick,W:r.W,L:r.L,qty:0,orig:0,bundles:[],mode:'pct'};
+      grouped[key].qty+=r.qty;
+      grouped[key].orig+=getOrig(r);
+      grouped[key].bundles.push(r.id);
+    }
   });
-  return Object.values(groups)
-    .filter(g=>g.orig>0&&g.qty/g.orig<0.25&&g.qty>0)
-    .sort((a,b)=>a.qty/a.orig-b.qty/b.orig); // most critical first
+
+  // Add grouped 25% items
+  Object.values(grouped).forEach(g=>{
+    if(g.orig>0&&g.qty/g.orig<0.25&&g.qty>=0) result.push(g);
+  });
+
+  return result.sort((a,b)=>{
+    // reorder point items: sort by how close to reorder point
+    const aRatio=a.mode==='reorder'?a.qty/a.reorderPoint:a.qty/a.orig;
+    const bRatio=b.mode==='reorder'?b.qty/b.reorderPoint:b.qty/b.orig;
+    return aRatio-bRatio;
+  });
 }
 
 function renderStats(){
   const tM3=stock.reduce((a,r)=>a+r.m3,0),tQ=stock.reduce((a,r)=>a+r.qty,0);
   const lowItems=getLowStockItems();
   const low=lowItems.length;
-
   document.getElementById('stats-strip').innerHTML=`
     <div class="stat"><div class="l"><svg class="ic" width="12" height="12"><use href="#i-box"/></svg>Bundles</div><div class="v">${stock.length}</div><div class="d">in yard</div></div>
     <div class="stat teal"><div class="l"><svg class="ic" width="12" height="12"><use href="#i-cube"/></svg>Total m³</div><div class="v">${tM3.toFixed(1)}<small>m³</small></div><div class="d">stock volume</div></div>
@@ -1245,8 +1308,52 @@ function renderStock(){
     });
   });
   tb.innerHTML=html;
+
+  // ── Mobile card list ──
+  let mhtml=''; let mlastThick=null;
+  sl.forEach(r=>{
+    const trueOrig=getOrig(r);
+    const p=trueOrig>0?r.qty/trueOrig:1, bc=barCls(p);
+    const qc=p<0.1?'var(--red)':p<0.25?'var(--amber)':'var(--ink)';
+    if(r.thick!==mlastThick){
+      mhtml+=`<div class="mob-thick-head"><span class="tg-label">Thick</span><span class="tg-val">${r.thick}mm</span><span class="tg-count">${rows.filter(x=>x.thick===r.thick).length} bundles</span></div>`;
+      mlastThick=r.thick;
+    }
+    mhtml+=`<div class="mob-card">
+      <div class="mob-left">
+        <span class="mob-id" onclick="openBundleHistory('${r.id}')">${r.id}</span>
+        <span class="mob-dims">${r.thick}mm${r.L?' · '+r.L+'mm':''}${r.W?' · '+r.W+'mm':''}</span>
+      </div>
+      <div class="mob-right">
+        <div class="mob-qty">
+          <div class="mob-qty-num" style="color:${qc}">${r.qty}</div>
+          <div class="mob-qty-orig">of ${trueOrig}</div>
+          <div class="mob-bar ${bc}"><i style="width:${Math.min(100,p*100).toFixed(1)}%"></i></div>
+        </div>
+        <button class="mob-book" onclick="goBook('${r.id}')">Book out</button>
+      </div>
+    </div>`;
+  });
+  const mlist=document.getElementById('mobile-stock-list');
+  if(mlist) mlist.innerHTML=mhtml;
+
+  renderPager(pages);
   document.getElementById('stock-pager').innerHTML='';
+
+function renderPager(pages){
+  const pager=document.getElementById('stock-pager');
+  if(pages<=1){pager.innerHTML='';return;}
+  let b='';
+  b+=`<button onclick="gp(${pg-1})" ${pg===1?'disabled':''}>‹</button>`;
+  for(let i=1;i<=pages;i++){
+    if(pages<=7||i===1||i===pages||Math.abs(i-pg)<=1) b+=`<button onclick="gp(${i})"${i===pg?' aria-current="page"':''}>${i}</button>`;
+    else if(i===2&&pg>4) b+='<button disabled>…</button>';
+    else if(i===pages-1&&pg<pages-3) b+='<button disabled>…</button>';
+  }
+  b+=`<button onclick="gp(${pg+1})" ${pg===pages?'disabled':''}>›</button>`;
+  pager.innerHTML=`<div>Page <b style="color:var(--ink);font-weight:600">${pg}</b> of ${pages}</div><div class="pages">${b}</div>`;
 }
+function gp(p){pg=p;renderStock();}
 
 function openBundleHistory(id){
   const b=stock.find(r=>r.id===id);
@@ -1307,22 +1414,28 @@ function openLowStockModal(){
         </tr></thead>
         <tbody>
         ${items.map(g=>{
-          const pct=Math.round(g.qty/g.orig*100);
+          const pct=g.mode==='reorder'
+            ?Math.round(g.qty/g.reorderPoint*100)
+            :Math.round(g.qty/g.orig*100);
           const used=g.orig-g.qty;
-          const col=pct<10?'var(--red)':'var(--amber)';
+          const col=g.qty===0?'var(--red)':g.mode==='reorder'?'var(--amber)':pct<10?'var(--red)':'var(--amber)';
           const dims=[g.thick+'mm',g.W?g.W+'mm':'',g.L?g.L+'mm':''].filter(Boolean).join(' × ');
+          const tag=g.mode==='reorder'
+            ?`<span style="font-size:10px;background:var(--amber-soft);color:var(--amber);padding:2px 7px;border-radius:999px;font-weight:700;">KANBAN</span>`
+            :`<span style="font-size:10px;background:var(--red-soft);color:var(--red);padding:2px 7px;border-radius:999px;font-weight:700;">25% LOW</span>`;
           return `<tr style="border-bottom:1px solid var(--hairline);">
             <td style="padding:10px 10px;">
-              <div style="font-weight:600;color:var(--ink);">${g.wood} · ${g.supplier}</div>
+              <div style="font-weight:600;color:var(--ink);display:flex;align-items:center;gap:6px;">${g.wood} · ${g.supplier} ${tag}</div>
               <div style="font-size:11px;color:var(--ink-3);margin-top:2px;">${dims}</div>
               <div style="font-size:10px;color:var(--ink-3);margin-top:2px;">${g.bundles.join(', ')}</div>
+              ${g.mode==='reorder'?`<div style="font-size:11px;color:var(--amber);margin-top:3px;font-weight:600;">Reorder point: ${g.reorderPoint} pcs</div>`:''}
             </td>
             <td style="text-align:right;padding:10px;font-variant-numeric:tabular-nums;color:var(--ink-2);">${used.toLocaleString()}</td>
             <td style="text-align:right;padding:10px;font-weight:700;font-variant-numeric:tabular-nums;color:${col};">${g.qty.toLocaleString()}</td>
             <td style="text-align:right;padding:10px;">
-              <span style="font-size:12px;font-weight:700;color:${col};">${pct}%</span>
+              <span style="font-size:12px;font-weight:700;color:${col};">${g.qty} pcs</span>
               <div style="margin-top:4px;height:3px;width:48px;background:var(--surface-3);border-radius:2px;overflow:hidden;margin-left:auto;">
-                <div style="height:100%;width:${pct}%;background:${col};border-radius:2px;"></div>
+                <div style="height:100%;width:${Math.min(100,g.mode==='reorder'?g.qty/g.reorderPoint*100:pct)}%;background:${col};border-radius:2px;"></div>
               </div>
             </td>
           </tr>`;
@@ -1359,19 +1472,21 @@ function openEditQty(id){
   document.getElementById('edit-modal-title').textContent='Edit qty — '+id;
   document.getElementById('edit-qty').value=b.qty;
   document.getElementById('edit-reason').value='';
+  document.getElementById('edit-reorder').value=b.reorderPoint||0;
   document.getElementById('edit-modal').classList.add('show');
 }
 async function saveEditQty(){
   const newQty=parseInt(document.getElementById('edit-qty').value);
   const reason=document.getElementById('edit-reason').value.trim();
+  const reorder=parseInt(document.getElementById('edit-reorder').value)||0;
   if(isNaN(newQty)||newQty<0){alert('Enter a valid quantity');return;}
   if(!reason){alert('Please enter a reason for the change');return;}
   const b=stock.find(r=>r.id===editingBundleId); if(!b) return;
   const oldQty=b.qty;
-  b.qty=newQty; b.orig=Math.max(b.orig,newQty);
-  await sbUpdate('stock',b.id,{qty:b.qty,orig:b.orig});
+  b.qty=newQty; b.orig=Math.max(b.orig,newQty); b.reorderPoint=reorder;
+  await sbUpdate('stock',b.id,{qty:b.qty,orig:b.orig,reorder_point:reorder});
   stamp();
-  auditLog('edit',editingBundleId,`${oldQty} → ${newQty}`,reason);
+  auditLog('edit',editingBundleId,`${oldQty} → ${newQty}${reorder?` · reorder point set to ${reorder}`:''}`,reason);
   closeModal('edit-modal');
   renderStock();
 }
