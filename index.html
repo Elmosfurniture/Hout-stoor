@@ -225,8 +225,8 @@ html,body{margin:0;padding:0;min-height:100vh;font-family:'Inter',-apple-system,
 .bcard-head{background:var(--navy);padding:18px 22px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;}
 .bcard-id{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:600;color:white;letter-spacing:0.04em;}
 .bcard-meta{font-size:12px;color:rgba(255,255,255,0.6);margin-top:5px;}
-.bcard-qty{font-size:30px;font-weight:700;color:white;font-variant-numeric:tabular-nums;text-align:right;}
-.bcard-qty-sub{font-size:11px;color:rgba(255,255,255,0.5);margin-top:3px;text-align:right;}
+.bcard-qty{font-size:30px;font-weight:700;color:white!important;font-variant-numeric:tabular-nums;text-align:right;}
+.bcard-qty-sub{font-size:11px;color:rgba(255,255,255,0.6)!important;margin-top:3px;text-align:right;}
 .bcard-dims{display:grid;grid-template-columns:repeat(5,1fr);border-bottom:1px solid var(--hairline);}
 .bcard-di{padding:12px 16px;border-right:1px solid var(--hairline);}
 .bcard-di:last-child{border-right:0;}
@@ -506,10 +506,6 @@ html,body{margin:0;padding:0;min-height:100vh;font-family:'Inter',-apple-system,
     <button class="nav-item" id="nav-scan" onclick="nav('scan')">
       <svg><use href="#i-scan"/></svg><span class="nlabel">Scan / Book out</span>
     </button>
-    <button class="nav-item" id="nav-labels" onclick="nav('labels')">
-      <svg><use href="#i-qr"/></svg><span class="nlabel">QR Labels</span>
-    </button>
-    </button>
   </div>
   <div class="nav-group">
     <div class="nav-title">Reports</div>
@@ -523,6 +519,9 @@ html,body{margin:0;padding:0;min-height:100vh;font-family:'Inter',-apple-system,
     <button class="nav-item" id="nav-sent" onclick="nav('sent')">
       <svg><use href="#i-factory"/></svg><span class="nlabel">Sent orders</span>
     </button>
+    <button class="nav-item" id="nav-empty" onclick="nav('empty')">
+      <svg><use href="#i-box"/></svg><span class="nlabel">Empty bundles</span>
+    </button>
   </div>
   <div class="nav-group">
     <div class="nav-title">Stock Management</div>
@@ -534,7 +533,7 @@ html,body{margin:0;padding:0;min-height:100vh;font-family:'Inter',-apple-system,
       <svg><use href="#i-down"/></svg><span class="nlabel">Receive stock</span>
     </button>
     <button class="nav-item" id="nav-rules" onclick="nav('rules')">
-      <svg><use href="#i-edit"/></svg><span class="nlabel">Min rules</span>
+      <svg><use href="#i-edit"/></svg><span class="nlabel">Items / Rules</span>
     </button>
     <button class="nav-item" id="nav-settings" onclick="nav('settings')">
       <svg><use href="#i-factory"/></svg><span class="nlabel">Email settings</span>
@@ -575,7 +574,6 @@ html,body{margin:0;padding:0;min-height:100vh;font-family:'Inter',-apple-system,
       <button class="ibtn" id="add-item-btn" onclick="openAddItem()"><svg><use href="#i-box"/></svg>Add item</button>
       <button class="ibtn" id="assign-ids-btn" onclick="assignBoardIds()" style="display:none"><svg><use href="#i-edit"/></svg>Assign IDs</button>
       <button class="ibtn" onclick="nav('scan')"><svg><use href="#i-scan"/></svg>Scan</button>
-      <button class="ibtn" onclick="nav('labels')"><svg><use href="#i-printer"/></svg>QR Labels</button>
       <button class="ibtn" onclick="nav('export')"><svg><use href="#i-down"/></svg>Export</button>
     </div>
   </div>
@@ -628,7 +626,7 @@ html,body{margin:0;padding:0;min-height:100vh;font-family:'Inter',-apple-system,
         <table class="tbl">
           <thead><tr>
             <th>Code</th><th>Description</th><th>Supplier</th><th>Type</th>
-            <th>kg/m</th><th>Qty (L)</th><th>Min qty</th><th>Price/L</th><th>Action</th>
+            <th>kg/m</th><th>Length (m)</th><th>Qty (lgths)</th><th>Min qty</th><th>Price/lgth</th><th>Action</th>
           </tr></thead>
           <tbody id="steel-tbody"></tbody>
         </table>
@@ -687,15 +685,19 @@ html,body{margin:0;padding:0;min-height:100vh;font-family:'Inter',-apple-system,
 <!-- QR LABELS -->
 <div id="screen-labels" class="screen">
   <div class="topbar">
-    <div><h1>QR Labels</h1><div class="sub">Print and stick on each bundle</div></div>
+    <div><h1>QR Labels</h1><div class="sub">Print and stick on each bundle or steel item</div></div>
     <div class="topbar-actions">
       <button class="ibtn primary" onclick="window.print()"><svg><use href="#i-printer"/></svg>Print</button>
     </div>
   </div>
   <div class="section">
     <div class="section-head">
-      <h2><svg><use href="#i-qr"/></svg>Bundle labels</h2>
+      <h2><svg><use href="#i-qr"/></svg>Labels</h2>
       <span class="meta" id="label-count"></span>
+    </div>
+    <div class="dept-tabs" style="padding:12px 18px 0">
+      <button class="dept-tab active" id="ltab-wood" onclick="setLabelDept('wood')"><svg><use href="#i-box"/></svg>Wood</button>
+      <button class="dept-tab" id="ltab-steel" onclick="setLabelDept('steel')"><svg><use href="#i-steel"/></svg>Steel</button>
     </div>
     <div class="filters" style="grid-template-columns:1.4fr 1fr auto">
       <div class="sbox"><svg><use href="#i-search"/></svg><input type="text" id="l-search" placeholder="Filter…" oninput="renderLabels()"></div>
@@ -757,8 +759,30 @@ html,body{margin:0;padding:0;min-height:100vh;font-family:'Inter',-apple-system,
     </div>
     <div class="tbl-wrap" style="max-height:420px;overflow-y:auto">
       <table class="tbl">
-        <thead><tr><th>Code</th><th>Description</th><th>Type</th><th>Supplier</th><th>Qty (L)</th><th>Min qty</th><th>Cost/L</th></tr></thead>
+        <thead><tr><th>Code</th><th>Description</th><th>Type</th><th>Supplier</th><th>Qty (lgths)</th><th>Min qty</th><th>Cost/lgth</th></tr></thead>
         <tbody id="export-steel-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- EMPTY BUNDLES -->
+<div id="screen-empty" class="screen">
+  <div class="topbar">
+    <div><h1>Empty bundles</h1><div class="sub">Bundles that have been fully used up</div></div>
+    <div class="topbar-actions">
+      <button class="ibtn danger" onclick="clearEmptyBundles()"><svg><use href="#i-trash"/></svg>Delete all empty</button>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-head">
+      <h2><svg><use href="#i-box"/></svg>Used up bundles</h2>
+      <span class="meta" id="empty-count"></span>
+    </div>
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>Bundle nr</th><th>Wood</th><th>Supplier</th><th>Grade</th><th>Thick</th><th>Width</th><th>Length</th><th>Date in</th><th></th></tr></thead>
+        <tbody id="empty-tbody"></tbody>
       </table>
     </div>
   </div>
@@ -827,7 +851,7 @@ html,body{margin:0;padding:0;min-height:100vh;font-family:'Inter',-apple-system,
 <!-- MIN M3 RULES -->
 <div id="screen-rules" class="screen">
   <div class="topbar">
-    <div><h1>Min rules</h1><div class="sub">Set minimums that trigger low stock alerts</div></div>
+    <div><h1>Items / Rules</h1><div class="sub">Set minimums that trigger low stock alerts</div></div>
     <div class="topbar-actions">
       <button class="ibtn primary" onclick="saveRules();saveSteelRules()"><svg><use href="#i-check"/></svg>Save all rules</button>
     </div>
@@ -856,7 +880,7 @@ html,body{margin:0;padding:0;min-height:100vh;font-family:'Inter',-apple-system,
       <table class="tbl">
         <thead><tr>
           <th>Code</th><th>Description</th><th>Type / Supplier</th>
-          <th>Current qty</th><th>Min qty</th><th>Unit</th><th>Cost price</th><th>Order qty</th>
+          <th>Length (m)</th><th>Current qty</th><th>Min qty</th><th>Unit</th><th>Cost price</th><th>Order qty</th>
         </tr></thead>
         <tbody id="steel-rules-tbody"></tbody>
       </table>
@@ -1009,7 +1033,7 @@ html,body{margin:0;padding:0;min-height:100vh;font-family:'Inter',-apple-system,
       <div class="frow"><label>Price per length (R)</label><input type="text" id="as-price" placeholder="e.g. R 65.00"></div>
       <div class="frow"><label>Cost per length (R)</label><input type="text" id="as-cost" placeholder="e.g. R 55.00"></div>
       <div class="frow"><label>Qty (lengths)</label><input type="number" id="as-qty" placeholder="e.g. 10" min="0"></div>
-      <div class="frow"><label>Length per piece (m)</label><input type="number" id="as-length" placeholder="3" min="0" step="0.1" value="3"></div>
+      <div class="frow"><label>Length per piece (m)</label><input type="number" id="as-length" placeholder="3.00" min="0" step="0.01" value="3"></div>
       <div class="frow"><label>Min qty (reorder point)</label><input type="number" id="as-min" placeholder="e.g. 5" min="0"></div>
     </div>
     <div class="modal-actions">
@@ -1438,72 +1462,7 @@ var STEEL_RAW=[
 ];
 
 /* ── RAW DATA ── */
-var RAW=[
-  {id:"MDF3",wood:"MDF",supplier:"CC Timbers",grade:"Board",thick:3,L:1830,W:2750,qty:11,orig:11,m3:0.166,dateIn:"01/05/26",location:"",reorderPoint:0},
-  {id:"PLY6",wood:"Plywood",supplier:"CC Timbers",grade:"Board",thick:6,L:1220,W:2440,qty:28,orig:28,m3:0.5,dateIn:"20/04/26",location:"",reorderPoint:0},
-  {id:"MDF6",wood:"MDF",supplier:"CC Timbers",grade:"Board",thick:6,L:1830,W:2750,qty:25,orig:25,m3:0.06,dateIn:"29/10/25",location:"",reorderPoint:0},
-  {id:"PP09",wood:"Plywood",supplier:"CC Timbers",grade:"Board",thick:9,L:1220,W:2440,qty:10,orig:10,m3:0.268,dateIn:"10/12/25",location:"",reorderPoint:0},
-  {id:"PLY12",wood:"Plywood",supplier:"CC Timbers",grade:"Board",thick:12,L:1220,W:2440,qty:19,orig:19,m3:0.679,dateIn:"25/11/25",location:"",reorderPoint:0},
-  {id:"PLY15",wood:"Plywood",supplier:"Eco Timbers",grade:"Board",thick:15,L:2440,W:1220,qty:2,orig:2,m3:0.089,dateIn:"11/03/26",location:"",reorderPoint:0},
-  {id:"C16",wood:"Chipboard",supplier:"CC Timbers",grade:"Board",thick:16,L:1830,W:2750,qty:20,orig:20,m3:1.449,dateIn:"01/04/26",location:"",reorderPoint:0},
-  {id:"MDF16",wood:"MDF",supplier:"CC Timbers",grade:"Board",thick:16,L:1830,W:2750,qty:12,orig:12,m3:0.483,dateIn:"11/03/26",location:"",reorderPoint:0},
-  {id:"PLY18",wood:"Plywood",supplier:"CC Timbers",grade:"Board",thick:18,L:1220,W:2440,qty:71,orig:71,m3:3.804,dateIn:"24/04/26",location:"",reorderPoint:0},
-  {id:"PLY21",wood:"Plywood",supplier:"CC Timbers",grade:"Board",thick:22,L:1220,W:2440,qty:5,orig:5,m3:0.327,dateIn:"17/04/26",location:"",reorderPoint:0},
-  {id:"MDF30",wood:"MDF",supplier:"CC Timbers",grade:"Board",thick:30,L:1830,W:2750,qty:6,orig:6,m3:0.906,dateIn:"11/03/26",location:"",reorderPoint:0},
-  {id:"P38",wood:"Pine",supplier:"Eco Timbers",grade:"Board",thick:38,L:0,W:0,qty:9,orig:9,m3:0.686,dateIn:"11/03/26",location:"",reorderPoint:0},
-  {id:"E718",wood:"Hevea",supplier:"Vizara",grade:"A",thick:25,L:450,W:76,qty:468,orig:468,m3:0.4,dateIn:"30/04/26",location:"",reorderPoint:0},
-  {id:"E388",wood:"Hevea",supplier:"Vizara",grade:"A",thick:25,L:450,W:114,qty:46,orig:46,m3:0.059,dateIn:"11/03/26",location:"",reorderPoint:0},
-  {id:"E390",wood:"Hevea",supplier:"Vizara",grade:"A",thick:25,L:450,W:114,qty:117,orig:117,m3:0.15,dateIn:"11/03/26",location:"",reorderPoint:0},
-  {id:"E610",wood:"Hevea",supplier:"Tegs IC",grade:"A",thick:25,L:500,W:55,qty:80,orig:80,m3:0.099,dateIn:"29/04/26",location:"",reorderPoint:0},
-  {id:"E611",wood:"Hevea",supplier:"Tegs IC",grade:"A",thick:25,L:500,W:55,qty:222,orig:222,m3:0.153,dateIn:"29/04/26",location:"",reorderPoint:0},
-  {id:"E612",wood:"Hevea",supplier:"Tegs IC",grade:"A",thick:25,L:500,W:55,qty:205,orig:205,m3:0.265,dateIn:"29/04/26",location:"",reorderPoint:0},
-  {id:"E614",wood:"Hevea",supplier:"Tegs IC",grade:"A",thick:25,L:600,W:55,qty:363,orig:363,m3:0.353,dateIn:"29/04/26",location:"",reorderPoint:0},
-  {id:"E615",wood:"Hevea",supplier:"Tegs IC",grade:"A",thick:25,L:600,W:55,qty:132,orig:132,m3:0.196,dateIn:"29/04/26",location:"",reorderPoint:0},
-  {id:"E448",wood:"Hevea",supplier:"Vizara",grade:"A",thick:25,L:600,W:76,qty:373,orig:373,m3:0.425,dateIn:"13/03/26",location:"",reorderPoint:0},
-  {id:"E401",wood:"Hevea",supplier:"Vizara",grade:"A",thick:25,L:600,W:152,qty:178,orig:178,m3:0.406,dateIn:"11/03/26",location:"",reorderPoint:0},
-  {id:"E622",wood:"Hevea",supplier:"Tegs IC",grade:"A",thick:25,L:750,W:55,qty:313,orig:313,m3:0.384,dateIn:"29/04/26",location:"",reorderPoint:0},
-  {id:"E719",wood:"Hevea",supplier:"Vizara",grade:"A",thick:25,L:750,W:76,qty:560,orig:560,m3:0.798,dateIn:"30/04/26",location:"",reorderPoint:0},
-  {id:"E362",wood:"Hevea",supplier:"Vizara",grade:"A",thick:25,L:750,W:76,qty:560,orig:560,m3:0.798,dateIn:"02/03/26",location:"",reorderPoint:0},
-  {id:"E720",wood:"Hevea",supplier:"Vizara",grade:"A",thick:25,L:750,W:114,qty:360,orig:360,m3:0.77,dateIn:"30/04/26",location:"",reorderPoint:0},
-  {id:"E716",wood:"Hevea",supplier:"Vizara",grade:"A",thick:25,L:750,W:152,qty:280,orig:280,m3:0.798,dateIn:"30/04/26",location:"",reorderPoint:0},
-  {id:"E578",wood:"Hevea",supplier:"Vizara",grade:"FJ",thick:25,L:901,W:114,qty:348,orig:348,m3:0.894,dateIn:"10/04/26",location:"",reorderPoint:0},
-  {id:"E496",wood:"Hevea",supplier:"Vizara",grade:"FJ",thick:25,L:901,W:114,qty:300,orig:300,m3:0.77,dateIn:"24/03/26",location:"",reorderPoint:0},
-  {id:"E644",wood:"Hevea",supplier:"Tegs IC",grade:"A",thick:25,L:1000,W:55,qty:187,orig:187,m3:0.466,dateIn:"29/04/26",location:"",reorderPoint:0},
-  {id:"E648",wood:"Hevea",supplier:"Tegs IC",grade:"A",thick:25,L:1100,W:55,qty:107,orig:107,m3:0.195,dateIn:"29/04/26",location:"",reorderPoint:0},
-  {id:"E649",wood:"Hevea",supplier:"Tegs IC",grade:"A",thick:25,L:1100,W:55,qty:201,orig:201,m3:0.528,dateIn:"29/04/26",location:"",reorderPoint:0},
-  {id:"E654",wood:"Hevea",supplier:"Tegs IC",grade:"A",thick:25,L:1200,W:55,qty:201,orig:201,m3:0.605,dateIn:"29/04/26",location:"",reorderPoint:0},
-  {id:"E736",wood:"Hevea",supplier:"Vizara",grade:"A",thick:25,L:1200,W:152,qty:120,orig:120,m3:0.547,dateIn:"30/04/26",location:"",reorderPoint:0},
-  {id:"E605",wood:"Hevea",supplier:"Vizara",grade:"B",thick:25,L:2100,W:152,qty:140,orig:140,m3:1.117,dateIn:"10/04/26",location:"",reorderPoint:0},
-  {id:"E583",wood:"Hevea",supplier:"Vizara",grade:"B",thick:25,L:2400,W:152,qty:125,orig:125,m3:1.14,dateIn:"10/04/26",location:"",reorderPoint:0},
-  {id:"E712",wood:"Hevea",supplier:"Vizara",grade:"FJ",thick:25,L:2401,W:114,qty:180,orig:180,m3:1.231,dateIn:"30/04/26",location:"",reorderPoint:0},
-  {id:"E395",wood:"Hevea",supplier:"Vizara",grade:"FJ",thick:25,L:2701,W:114,qty:80,orig:80,m3:0.554,dateIn:"11/03/26",location:"",reorderPoint:0},
-  {id:"BB141",wood:"Oak",supplier:"Tegs Timber",grade:"Prime",thick:3,L:3000,W:0,qty:0,orig:0,m3:1.065,dateIn:"12/05/26",location:"",reorderPoint:0},
-  {id:"BB120",wood:"Oak",supplier:"Bos Timbers",grade:"Prime",thick:25,L:2100,W:0,qty:0,orig:0,m3:1.097,dateIn:"12/02/26",location:"",reorderPoint:0},
-  {id:"BB125",wood:"Ash",supplier:"Tegs Timber",grade:"Prime",thick:25,L:2300,W:0,qty:0,orig:0,m3:1.494,dateIn:"25/02/26",location:"",reorderPoint:0},
-  {id:"BB126",wood:"Ash",supplier:"Tegs Timber",grade:"Prime",thick:25,L:2300,W:0,qty:0,orig:0,m3:1.433,dateIn:"25/02/26",location:"",reorderPoint:0},
-  {id:"E737",wood:"Hevea",supplier:"Vizara",grade:"A",thick:38,L:450,W:76,qty:784,orig:784,m3:1.019,dateIn:"30/04/26",location:"",reorderPoint:0},
-  {id:"E442",wood:"Hevea",supplier:"Vizara",grade:"A",thick:38,L:450,W:76,qty:784,orig:784,m3:1.019,dateIn:"13/03/26",location:"",reorderPoint:0},
-  {id:"E738",wood:"Hevea",supplier:"Vizara",grade:"A",thick:38,L:450,W:114,qty:504,orig:504,m3:0.982,dateIn:"30/04/26",location:"",reorderPoint:0},
-  {id:"E741",wood:"Hevea",supplier:"Vizara",grade:"A",thick:38,L:450,W:152,qty:392,orig:392,m3:1.019,dateIn:"30/04/26",location:"",reorderPoint:0},
-  {id:"E676",wood:"Hevea",supplier:"Tegs IC",grade:"A",thick:38,L:500,W:55,qty:200,orig:200,m3:0.249,dateIn:"29/04/26",location:"",reorderPoint:0},
-  {id:"E735",wood:"Hevea",supplier:"Vizara",grade:"A",thick:38,L:500,W:76,qty:588,orig:588,m3:0.849,dateIn:"30/04/26",location:"",reorderPoint:0},
-  {id:"E734",wood:"Hevea",supplier:"Vizara",grade:"A",thick:38,L:500,W:114,qty:378,orig:378,m3:0.819,dateIn:"30/04/26",location:"",reorderPoint:0},
-  {id:"E733",wood:"Hevea",supplier:"Vizara",grade:"A",thick:38,L:500,W:152,qty:294,orig:294,m3:0.849,dateIn:"30/04/26",location:"",reorderPoint:0},
-  {id:"E549",wood:"Hevea",supplier:"Vizara",grade:"FJ",thick:38,L:901,W:76,qty:349,orig:349,m3:0.908,dateIn:"07/04/26",location:"",reorderPoint:0},
-  {id:"E551",wood:"Hevea",supplier:"Vizara",grade:"FJ",thick:38,L:901,W:76,qty:392,orig:392,m3:1.019,dateIn:"07/04/26",location:"",reorderPoint:0},
-  {id:"E908",wood:"Hevea",supplier:"Vizara",grade:"FJ",thick:38,L:901,W:114,qty:252,orig:252,m3:0.982,dateIn:"12/12/25",location:"",reorderPoint:0},
-  {id:"E105",wood:"Hevea",supplier:"Vizara",grade:"FJ",thick:38,L:1201,W:152,qty:126,orig:126,m3:0.679,dateIn:"11/02/26",location:"",reorderPoint:0},
-  {id:"E444",wood:"Hevea",supplier:"Vizara",grade:"FJ",thick:38,L:1501,W:152,qty:98,orig:98,m3:0.849,dateIn:"13/03/26",location:"",reorderPoint:0},
-  {id:"E745",wood:"Hevea",supplier:"Vizara",grade:"B",thick:38,L:1800,W:152,qty:98,orig:98,m3:1.019,dateIn:"30/04/26",location:"",reorderPoint:0},
-  {id:"E732",wood:"Hevea",supplier:"Vizara",grade:"FJ",thick:38,L:1801,W:76,qty:196,orig:196,m3:1.019,dateIn:"30/04/26",location:"",reorderPoint:0},
-  {id:"E600",wood:"Hevea",supplier:"Vizara",grade:"FJ",thick:38,L:1801,W:152,qty:98,orig:98,m3:1.019,dateIn:"10/04/26",location:"",reorderPoint:0},
-  {id:"E126",wood:"Hevea",supplier:"Vizara",grade:"B",thick:38,L:2100,W:152,qty:98,orig:98,m3:1.189,dateIn:"18/02/26",location:"",reorderPoint:0},
-  {id:"E744",wood:"Hevea",supplier:"Vizara",grade:"B",thick:38,L:2400,W:152,qty:22,orig:22,m3:0.305,dateIn:"30/04/26",location:"",reorderPoint:0},
-  {id:"E568",wood:"Hevea",supplier:"Vizara",grade:"A",thick:50,L:500,W:114,qty:270,orig:270,m3:0.77,dateIn:"10/04/26",location:"",reorderPoint:0},
-  {id:"E574",wood:"Hevea",supplier:"Vizara",grade:"A",thick:50,L:600,W:114,qty:270,orig:270,m3:0.923,dateIn:"10/04/26",location:"",reorderPoint:0},
-  {id:"E572",wood:"Hevea",supplier:"Vizara",grade:"A",thick:50,L:750,W:114,qty:154,orig:154,m3:0.658,dateIn:"10/04/26",location:"",reorderPoint:0},
-  {id:"E573",wood:"Hevea",supplier:"Vizara",grade:"A",thick:50,L:750,W:152,qty:140,orig:140,m3:0.798,dateIn:"10/04/26",location:"",reorderPoint:0}
-];
+var RAW=[]; // seeding disabled — stock loaded from CSV
 
 /* ── VIZARA BASELINES ── */
 var VB={
@@ -1571,7 +1530,7 @@ async function loadData(){
 // Map DB rows to app format
 function dbToWood(r){return {id:r.id,wood:r.wood,supplier:r.supplier,grade:r.grade,thick:r.thick,L:r.l,W:r.w,qty:r.qty,orig:r.orig,m3:r.m3,location:r.location,dateIn:r.date_in,reorderPoint:r.reorder_point||0};}
 function dbToWoodLog(r){return {id:r.id,time:r.time,type:r.type,bundle:r.bundle,detail:r.detail,note:r.note,user:r.username};}
-function dbToSteel(r){return {code:r.code,desc:r.description,type:r.type,supplier:r.supplier||'',kgpm:r.kgpm,price:r.price,cost:r.cost,qty:r.qty,minQty:r.min_qty||0};}
+function dbToSteel(r){return {code:r.code,desc:r.description,type:r.type,supplier:r.supplier||'',kgpm:r.kgpm,price:r.price,cost:r.cost,qty:r.qty,minQty:r.min_qty||0,length:r.length||3,orderQty:r.order_qty||0};}
 function dbToSteelLog(r){return {id:r.id,time:r.time,type:r.type,code:r.code,detail:r.detail,note:r.note,user:r.username};}
 
 async function saveStock(){
@@ -1599,7 +1558,25 @@ async function saveSteelLog(){
 
 function stamp(){var e=document.getElementById('sync-time');if(e)e.textContent='Synced '+new Date().toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'});}
 function updateBadge(){var e=document.getElementById('log-badge');if(!e)return;if(log.length){e.style.display='';e.textContent=log.length;}else e.style.display='none';}
-async function resetStock(){if(!confirm('Reset all stock to original values?'))return;stock=RAW.map(function(r){return Object.assign({},r);});await saveStock();renderStock();}
+async function resetStock(){
+  // Show in-app warning popup
+  var popup=document.createElement('div');
+  popup.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center';
+  popup.innerHTML=
+    '<div style="background:var(--surface);border-radius:16px;padding:28px 24px;max-width:340px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.4);text-align:center">'+
+      '<div style="font-size:36px;margin-bottom:12px">⚠️</div>'+
+      '<div style="font-size:17px;font-weight:700;color:var(--ink);margin-bottom:8px">Are you sure?</div>'+
+      '<div style="font-size:13px;color:var(--ink-2);margin-bottom:6px">This will clear all local data and reload the app.</div>'+
+      '<div style="font-size:13px;font-weight:600;color:var(--red);margin-bottom:24px">Please check with Roberto before doing this.</div>'+
+      '<div style="display:flex;gap:10px;justify-content:center">'+
+        '<button id="reset-confirm-btn" class="ibtn danger" style="padding:10px 20px">Yes, reset</button>'+
+        '<button id="reset-cancel-btn" class="ibtn" style="padding:10px 20px">Cancel</button>'+
+      '</div>'+
+    '</div>';
+  document.body.appendChild(popup);
+  document.getElementById('reset-cancel-btn').onclick=function(){popup.remove();};
+  document.getElementById('reset-confirm-btn').onclick=function(){localStorage.clear();location.reload();};
+}
 
 function addLog(type,bundleId,detail,note){
   var who=currentUser?currentUser.display:'Unknown';
@@ -1708,6 +1685,7 @@ async function nav(name){
   if(name==='rules'){renderRules();renderSteelRules();}
   if(name==='settings') loadEmailSettings();
   if(name==='sent'){renderSentEmails();}
+  if(name==='empty'){renderEmptyBundles();}
   if(name==='users'){
     if(currentUser&&currentUser.role==='admin'){
       populateRoleDropdown();
@@ -1879,7 +1857,7 @@ function renderStock(){
       })()+'</td>'+
       '<td>'+loc+'</td>'+
       '<td><span class="dim">'+r.dateIn+'</span></td>'+
-      '<td><button class="edit-btn" onclick="openEditQty(\''+r.id+'\')"><svg width="11" height="11"><use href="#i-edit"/></svg></button><button class="book-btn" onclick="goBook(\''+r.id+'\')"><svg><use href="#i-arrow"/></svg>Book out</button></td>'+
+      '<td><button class="edit-btn" onclick="openEditQty(\''+r.id+'\')"><svg width="11" height="11"><use href="#i-edit"/></svg></button><button class="edit-btn" onclick="printBundleQR(\''+r.id+'\')" title="Print QR"><svg width="11" height="11"><use href="#i-qr"/></svg></button><button class="book-btn" onclick="goBook(\''+r.id+'\')"><svg><use href="#i-arrow"/></svg>Book out</button></td>'+
       '</tr>';
     mhtml+='<div class="mob-card"><div class="mob-left"><span class="mob-id" onclick="openHistory(\''+r.id+'\')">'+r.id+'</span><span class="mob-dims">'+r.thick+'mm'+(r.W?' \xb7 '+r.W+'mm':'')+(r.L?' \xb7 '+r.L+'mm':'')+'</span></div>'+
       '<div class="mob-right"><div class="mob-qty"><div class="mob-qn" style="color:'+qc+'">'+r.qty+'</div><div class="mob-qo">of '+to+'</div><div class="mob-bar '+bc+'"><i style="width:'+Math.min(100,p*100).toFixed(1)+'%"></i></div></div>'+
@@ -1929,7 +1907,7 @@ function lookupBundle(val){
   el.innerHTML='<div class="bcard">'+
     '<div class="bcard-head">'+
       '<div><div class="bcard-id">'+b.id+'</div><div class="bcard-meta">'+b.wood+' \xb7 '+b.supplier+' \xb7 '+b.thick+'mm'+(b.L?' \xb7 '+b.L+'mm':'')+(b.W?' \xd7 '+b.W+'mm':'')+(b.location?' \xb7 \ud83d\udccd '+b.location:'')+'</div></div>'+
-      '<div><div class="bcard-qty" style="color:'+qc+'">'+b.qty+'</div><div class="bcard-qty-sub">of '+to+' pcs remaining</div></div>'+
+      '<div><div class="bcard-qty">'+b.qty+'</div><div class="bcard-qty-sub">of '+to+' pcs remaining</div></div>'+
     '</div>'+
     '<div class="bcard-dims">'+
       '<div class="bcard-di"><div class="bcard-dl">Grade</div><div class="bcard-dv">'+b.grade+'</div></div>'+
@@ -2080,28 +2058,65 @@ function camTick(){
 }
 
 /* ── LABELS ── */
+var labelDept='wood';
+function setLabelDept(dept){
+  labelDept=dept;
+  document.getElementById('ltab-wood').classList.toggle('active',dept==='wood');
+  document.getElementById('ltab-steel').classList.toggle('active',dept==='steel');
+  // Update supplier filter options
+  var sel=document.getElementById('l-supplier');
+  sel.innerHTML='<option value="">All suppliers</option>';
+  var sups=[...new Set((dept==='wood'?stock:steelStock).map(function(r){return r.supplier||'';}))].filter(Boolean).sort();
+  sups.forEach(function(s){sel.innerHTML+='<option value="'+s+'">'+s+'</option>';});
+  renderLabels();
+}
+
 function renderLabels(){
   var q=(document.getElementById('l-search').value||'').toLowerCase();
   var sup=document.getElementById('l-supplier').value;
-  var rows=stock.filter(function(r){return (!q||r.id.toLowerCase().includes(q)||r.wood.toLowerCase().includes(q))&&(!sup||r.supplier===sup);});
-  document.getElementById('label-count').textContent=rows.length+' labels';
   var grid=document.getElementById('label-grid');
   grid.innerHTML='';
-  rows.forEach(function(r){
-    var d=document.createElement('div');d.className='ql';
-    d.innerHTML=
-      '<div class="ql-qr" id="qr-'+r.id+'"></div>'+
-      '<div class="ql-info">'+
-        '<div class="ql-id">'+r.id+'</div>'+
-        '<div class="ql-wood">'+r.wood+' · '+r.supplier+'</div>'+
-        '<div class="ql-dims">'+r.thick+'mm'+(r.L?' × '+r.L+'mm':'')+(r.W?' × '+r.W+'mm':'')+(r.grade?' · '+r.grade:'')+'</div>'+
-      '</div>';
-    grid.appendChild(d);
-    try{
-      var url=location.href.split('?')[0]+'?bundle='+encodeURIComponent(r.id);
-      new QRCode(document.getElementById('qr-'+r.id),{text:url,width:90,height:90,colorDark:'#1f2a44',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
-    }catch(e){}
-  });
+
+  if(labelDept==='steel'){
+    var rows=steelStock.filter(function(r){
+      return (!q||r.code.toLowerCase().includes(q)||r.desc.toLowerCase().includes(q)||r.type.toLowerCase().includes(q))&&(!sup||r.supplier===sup);
+    });
+    document.getElementById('label-count').textContent=rows.length+' labels';
+    rows.forEach(function(r){
+      var d=document.createElement('div');d.className='ql';
+      var qid='sqr-'+r.code.replace(/[^a-zA-Z0-9]/g,'_');
+      d.innerHTML=
+        '<div class="ql-qr" id="'+qid+'"></div>'+
+        '<div class="ql-info">'+
+          '<div class="ql-id">'+r.code+'</div>'+
+          '<div class="ql-wood">'+r.type+(r.supplier?' · '+r.supplier:'')+'</div>'+
+          '<div class="ql-dims">'+r.desc+'</div>'+
+        '</div>';
+      grid.appendChild(d);
+      try{
+        var url=location.href.split('?')[0]+'?steel='+encodeURIComponent(r.code);
+        new QRCode(document.getElementById(qid),{text:url,width:90,height:90,colorDark:'#1f2a44',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
+      }catch(e){}
+    });
+  } else {
+    var rows=stock.filter(function(r){return (!q||r.id.toLowerCase().includes(q)||r.wood.toLowerCase().includes(q))&&(!sup||r.supplier===sup);});
+    document.getElementById('label-count').textContent=rows.length+' labels';
+    rows.forEach(function(r){
+      var d=document.createElement('div');d.className='ql';
+      d.innerHTML=
+        '<div class="ql-qr" id="qr-'+r.id+'"></div>'+
+        '<div class="ql-info">'+
+          '<div class="ql-id">'+r.id+'</div>'+
+          '<div class="ql-wood">'+r.wood+' · '+r.supplier+'</div>'+
+          '<div class="ql-dims">'+r.thick+'mm'+(r.L?' × '+r.L+'mm':'')+(r.W?' × '+r.W+'mm':'')+(r.grade?' · '+r.grade:'')+'</div>'+
+        '</div>';
+      grid.appendChild(d);
+      try{
+        var url=location.href.split('?')[0]+'?bundle='+encodeURIComponent(r.id);
+        new QRCode(document.getElementById('qr-'+r.id),{text:url,width:90,height:90,colorDark:'#1f2a44',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
+      }catch(e){}
+    });
+  }
 }
 
 /* ── BARCODES ── */
@@ -2295,38 +2310,50 @@ function saveEditQty(){
 
 function openLowModal(){
   var items=getLowItems();
+  var woodItems=items.filter(function(g){return !g.isSteel;});
+  var steelItems=items.filter(function(g){return g.isSteel;});
   var el=document.getElementById('low-body');
-  if(!items.length){
-    el.innerHTML='<div class="empty" style="padding:16px 0">No bundles currently below 25% \u2014 stock looks good!</div>';
-    document.getElementById('low-modal').classList.add('show');
-    return;
+
+  function makeTable(list,isSteel){
+    if(!list.length) return '<div class="empty" style="padding:8px 0">None</div>';
+    var rows='';
+    list.forEach(function(g){
+      var pct=g.mode==='kanban'?Math.round(g.qty/g.reorderPoint*100):Math.round(g.qty/g.orig*100);
+      var col=g.qty===0?'var(--red)':pct<10?'var(--red)':'var(--amber)';
+      var tag='<span style="font-size:10px;background:var(--red-soft);color:var(--red);padding:2px 7px;border-radius:999px;font-weight:700">LOW</span>';
+      var dims='';
+    if(g.W&&g.L) dims=g.W+'×'+g.L+'mm';
+    else if(g.L) dims=g.L+'mm (L)';
+    else if(g.W) dims=g.W+'mm (W)';
+    else dims='—';
+      var bw=Math.min(100,g.mode==='kanban'?g.qty/g.reorderPoint*100:pct);
+      rows+='<tr style="border-bottom:1px solid var(--hairline)">'+
+        '<td style="padding:10px"><div style="font-weight:600;display:flex;align-items:center;gap:6px">'+g.wood+' '+tag+'</div>'+
+        '<div style="font-size:11px;color:var(--ink-3);margin-top:2px">'+(g.supplier||'')+(dims?' · '+dims:'')+'</div></td>'+
+        '<td style="text-align:right;padding:10px;font-weight:700;color:'+col+'">'+g.qty+(isSteel?' lgths':' pcs')+'</td>'+
+        '<td style="text-align:right;padding:10px;min-qty:'+g.reorderPoint+'">'+g.reorderPoint+(isSteel?' lgths':' pcs')+'</td>'+
+        '<td style="text-align:right;padding:10px">'+
+        '<div style="height:3px;width:48px;background:var(--surface-3);border-radius:2px;overflow:hidden;margin-left:auto">'+
+        '<div style="height:100%;width:'+bw+'%;background:'+col+';border-radius:2px"></div></div></td></tr>';
+    });
+    return '<table style="width:100%;border-collapse:collapse;font-size:13px">'+
+      '<thead><tr style="background:var(--surface-2)">'+
+      '<th style="text-align:left;padding:8px 10px;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--ink-3)">Item</th>'+
+      '<th style="text-align:right;padding:8px 10px;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--ink-3)">Current</th>'+
+      '<th style="text-align:right;padding:8px 10px;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--ink-3)">Minimum</th>'+
+      '<th style="text-align:right;padding:8px 10px;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--ink-3)">Level</th>'+
+      '</tr></thead><tbody>'+rows+'</tbody></table>';
   }
-  var rows='';
-  items.forEach(function(g){
-    var pct=g.mode==='kanban'?Math.round(g.qty/g.reorderPoint*100):Math.round(g.qty/g.orig*100);
-    var used=g.orig-g.qty;
-    var col=g.qty===0?'var(--red)':pct<10?'var(--red)':'var(--amber)';
-    var dims=[g.thick+'mm',g.W?g.W+'mm':'',g.L?g.L+'mm':''].filter(Boolean).join(' x ');
-    var tag=g.mode==='kanban'?'<span style="font-size:10px;background:var(--amber-soft);color:var(--amber);padding:2px 7px;border-radius:999px;font-weight:700">KANBAN</span>':'<span style="font-size:10px;background:var(--red-soft);color:var(--red);padding:2px 7px;border-radius:999px;font-weight:700">25% LOW</span>';
-    var rline=g.mode==='kanban'?'<div style="font-size:11px;color:var(--amber);margin-top:3px;font-weight:600">Reorder point: '+g.reorderPoint+' pcs</div>':'';
-    var bw=Math.min(100,g.mode==='kanban'?g.qty/g.reorderPoint*100:pct);
-    rows+='<tr style="border-bottom:1px solid var(--hairline)">'+
-      '<td style="padding:10px"><div style="font-weight:600;display:flex;align-items:center;gap:6px">'+g.wood+' \xb7 '+g.supplier+' '+tag+'</div>'+
-      '<div style="font-size:11px;color:var(--ink-3);margin-top:2px">'+dims+'</div>'+
-      '<div style="font-size:10px;color:var(--ink-3);margin-top:2px">'+g.bundles.join(', ')+'</div>'+rline+'</td>'+
-      '<td style="text-align:right;padding:10px;color:var(--ink-2)">'+used.toLocaleString()+'</td>'+
-      '<td style="text-align:right;padding:10px;font-weight:700;color:'+col+'">'+g.qty.toLocaleString()+'</td>'+
-      '<td style="text-align:right;padding:10px"><span style="font-size:12px;font-weight:700;color:'+col+'">'+g.qty+' pcs</span>'+
-      '<div style="margin-top:4px;height:3px;width:48px;background:var(--surface-3);border-radius:2px;overflow:hidden;margin-left:auto">'+
-      '<div style="height:100%;width:'+bw+'%;background:'+col+';border-radius:2px"></div></div></td></tr>';
-  });
-  el.innerHTML='<table style="width:100%;border-collapse:collapse;font-size:13px">'+
-    '<thead><tr style="background:var(--surface-2)">'+
-    '<th style="text-align:left;padding:8px 10px;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--ink-3)">Wood / Size</th>'+
-    '<th style="text-align:right;padding:8px 10px;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--ink-3)">Used</th>'+
-    '<th style="text-align:right;padding:8px 10px;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--ink-3)">Remaining</th>'+
-    '<th style="text-align:right;padding:8px 10px;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--ink-3)">Status</th>'+
-    '</tr></thead><tbody>'+rows+'</tbody></table>';
+
+  if(!items.length){
+    el.innerHTML='<div class="empty" style="padding:16px 0">No items below minimum \u2014 stock looks good!</div>';
+  } else {
+    el.innerHTML=
+      '<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--ink-3);letter-spacing:0.06em;margin-bottom:6px">🪵 Wood</div>'+
+      makeTable(woodItems,false)+
+      '<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--ink-3);letter-spacing:0.06em;margin:14px 0 6px">🔩 Steel</div>'+
+      makeTable(steelItems,true);
+  }
   document.getElementById('low-modal').classList.add('show');
 }
 
@@ -2438,13 +2465,15 @@ function renderWoodSuppliersUI(){renderSupplierRows(loadWoodSuppliers(),'wood-su
 function renderSteelSuppliersUI(){renderSupplierRows(loadSteelSuppliers(),'steel-suppliers-list');}
 
 function getEmailFor(supplier){
+  if(!supplier) return '';
   var sups=loadWoodSuppliers();
-  var s=sups.find(function(x){return x.name===supplier;});
+  var s=sups.find(function(x){return x.name&&x.name.toLowerCase()===supplier.toLowerCase();});
   return s?s.email:'';
 }
 function getEmailForSteel(supplier){
+  if(!supplier) return '';
   var sups=loadSteelSuppliers();
-  var s=sups.find(function(x){return x.name===supplier;});
+  var s=sups.find(function(x){return x.name&&x.name.toLowerCase()===supplier.toLowerCase();});
   return s?s.email:'';
 }
 
@@ -2486,17 +2515,6 @@ function saveEmailSettings(){
   setTimeout(function(){msg.style.display='none';},3000);
 }
 
-function getEmailFor(supplier){
-  var sups=loadWoodSuppliers();
-  var s=sups.find(function(x){return x.name===supplier;});
-  return s?s.email:'';
-}
-function getEmailForSteel(supplier){
-  var sups=loadSteelSuppliers();
-  var s=sups.find(function(x){return x.name===supplier;});
-  return s?s.email:'';
-}
-
 function openSteelSupplierModal(code){
   var r=steelStock.find(function(x){return x.code===code;});
   if(!r) return;
@@ -2529,7 +2547,7 @@ var ALL_PERMS=[
   {key:'view_log',      label:'View audit log',      desc:'See all transactions'},
   {key:'export',        label:'Export data',         desc:'Download CSV exports'},
   {key:'orders',        label:'Order checklist',     desc:'View & send reorder emails'},
-  {key:'min_rules',     label:'Min rules',           desc:'Edit low stock minimums'},
+  {key:'min_rules',     label:'Items / Rules',           desc:'Edit low stock minimums'},
   {key:'email_settings',label:'Email settings',      desc:'Edit supplier emails & EmailJS'},
 ];
 // Admin always has everything — not stored in roles
@@ -2707,20 +2725,18 @@ function getNextAppNum(){
 
 async function assignBoardIds(){
   var isBoardFn=function(r){return r.grade==='Board'||r.grade==='Bd'||r.grade==='board'||r.grade==='HPL';};
-  var boards=stock.filter(function(r){return isBoardFn(r)&&(!r.id||r.id===r.id);});
-  // Find boards with non-meaningful IDs (single letters, "NEW", etc.)
-  var needsId=boards.filter(function(r){return !r.id.match(/^APP\d+$/i);});
+  var needsId=stock.filter(function(r){return isBoardFn(r)&&!r.id.match(/^APP\d+$/i);});
   if(!needsId.length){alert('All boards already have APP numbers.');return;}
+  if(!confirm('Assign APP numbers to '+needsId.length+' board bundles?')) return;
   var num=getNextAppNum();
-  var changed=0;
   needsId.forEach(function(r){
     r.id='APP'+String(num).padStart(3,'0');
-    num++;changed++;
+    num++;
   });
   await saveStock();
   renderStock();
   initFilters();
-  alert(changed+' board'+(changed!==1?'s':'')+' assigned APP numbers.');
+  alert(needsId.length+' board'+(needsId.length!==1?'s':'')+' assigned APP numbers.');
 }
 
 function openEditBoardId(oldId){
@@ -2813,6 +2829,136 @@ async function saveNewSteelItem(){
   closeModal('add-steel-modal');
   initSteelFilters();
   renderSteelStock();
+}
+
+/* ── EMPTY BUNDLES ── */
+function renderEmptyBundles(){
+  var empty=stock.filter(function(r){return r.qty<=0;});
+  var cnt=document.getElementById('empty-count');
+  if(cnt) cnt.textContent=empty.length+' bundles';
+  var tb=document.getElementById('empty-tbody');
+  if(!empty.length){tb.innerHTML='<tr><td colspan="9" class="empty">No empty bundles yet.</td></tr>';return;}
+  tb.innerHTML=empty.map(function(r){
+    return '<tr>'+
+      '<td><span class="bnr">'+r.id+'</span></td>'+
+      '<td><span class="wpill '+pillClass(r.wood)+'"><span class="dot"></span>'+r.wood+'</span></td>'+
+      '<td><span class="sup">'+r.supplier+'</span></td>'+
+      '<td>'+gradeBadge(r.grade)+'</td>'+
+      '<td><span class="dim">'+r.thick+'mm</span></td>'+
+      '<td><span class="dim">'+(r.W?r.W+'mm':'—')+'</span></td>'+
+      '<td><span class="dim">'+(r.L?r.L+'mm':'—')+'</span></td>'+
+      '<td><span class="dim">'+r.dateIn+'</span></td>'+
+      '<td><button class="ibtn danger" style="font-size:11px;padding:5px 8px" onclick="deleteBundle(\''+r.id+'\')"><svg><use href="#i-trash"/></svg>Delete</button></td>'+
+    '</tr>';
+  }).join('');
+}
+
+async function deleteBundle(id){
+  stock=stock.filter(function(r){return r.id!==id;});
+  await sb.from('wood_stock').delete().eq('id',id);
+  renderEmptyBundles();
+}
+
+async function clearEmptyBundles(){
+  var empty=stock.filter(function(r){return r.qty<=0;});
+  if(!empty.length){alert('No empty bundles to delete.');return;}
+  if(!confirm('Delete all '+empty.length+' empty bundles permanently?')) return;
+  var ids=empty.map(function(r){return r.id;});
+  stock=stock.filter(function(r){return r.qty>0;});
+  await sb.from('wood_stock').delete().in('id',ids);
+  renderEmptyBundles();
+  renderStock();
+  alert(ids.length+' empty bundles deleted.');
+}
+
+/* ── QR PRINT / DOWNLOAD ── */
+function buildQRPage(title, line1, line2, line3, url){
+  return '<!DOCTYPE html><html><head><title>QR - '+title+'</title>'+
+    '<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>'+
+    '<style>'+
+    '@page{size:40mm 60mm;margin:0}'+
+    'body{margin:0;padding:3mm;width:40mm;height:60mm;box-sizing:border-box;font-family:Arial,sans-serif;display:flex;flex-direction:column;align-items:center;gap:2mm}'+
+    '#qr img,#qr canvas{width:30mm!important;height:30mm!important;display:block}'+
+    '.qid{font-family:monospace;font-size:11pt;font-weight:700;color:#1f2a44;text-align:center}'+
+    '.qwood{font-size:8pt;font-weight:600;color:#4a4e5a;text-align:center}'+
+    '.qdims{font-size:7pt;color:#8a8e99;text-align:center}'+
+    '</style></head><body>'+
+    '<div id="qr"></div>'+
+    '<div class="qid">'+title+'</div>'+
+    '<div class="qwood">'+line1+'</div>'+
+    '<div class="qdims">'+line2+'</div>'+
+    (line3?'<div class="qdims">'+line3+'</div>':'')+
+    '<script>new QRCode(document.getElementById("qr"),{text:"'+url+'",width:113,height:113,colorDark:"#1f2a44",colorLight:"#ffffff"});<\/script>'+
+    '</body></html>';
+}
+
+function showQROptions(title, line1, line2, line3, url){
+  // Remove existing popup if any
+  var existing=document.getElementById('qr-popup');
+  if(existing) existing.remove();
+
+  var popup=document.createElement('div');
+  popup.id='qr-popup';
+  popup.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center';
+  popup.innerHTML=
+    '<div style="background:var(--surface);border-radius:16px;padding:24px;max-width:320px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3)">'+
+      '<h3 style="margin:0 0 6px;font-size:16px;color:var(--ink)">QR Code</h3>'+
+      '<p style="margin:0 0 20px;font-size:13px;color:var(--ink-2)"><b>'+title+'</b><br>'+line1+'</p>'+
+      '<div style="display:flex;gap:10px;flex-direction:column">'+
+        '<button class="ibtn primary" id="qr-print-btn" style="justify-content:center"><svg><use href="#i-printer"/></svg>Print label</button>'+
+        '<button class="ibtn" id="qr-dl-btn" style="justify-content:center"><svg><use href="#i-down"/></svg>Download PNG</button>'+
+        '<button class="ibtn" onclick="document.getElementById(\'qr-popup\').remove()" style="justify-content:center">Cancel</button>'+
+      '</div>'+
+    '</div>';
+  document.body.appendChild(popup);
+  popup.addEventListener('click',function(e){if(e.target===popup)popup.remove();});
+
+  document.getElementById('qr-print-btn').addEventListener('click',function(){
+    popup.remove();
+    var html=buildQRPage(title,line1,line2,line3,url);
+    var win=window.open('','_blank');
+    win.document.write(html);
+    win.document.close();
+    setTimeout(function(){win.print();},600);
+  });
+
+  document.getElementById('qr-dl-btn').addEventListener('click',function(){
+    popup.remove();
+    // Generate QR as canvas and download as PNG
+    var tmp=document.createElement('div');
+    tmp.style.cssText='position:fixed;left:-9999px;top:-9999px';
+    document.body.appendChild(tmp);
+    new QRCode(tmp,{text:url,width:300,height:300,colorDark:'#1f2a44',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
+    setTimeout(function(){
+      var canvas=tmp.querySelector('canvas');
+      if(canvas){
+        var a=document.createElement('a');
+        a.download='QR_'+title+'.png';
+        a.href=canvas.toDataURL('image/png');
+        a.click();
+      }
+      document.body.removeChild(tmp);
+    },300);
+  });
+}
+
+function printBundleQR(id){
+  var r=stock.find(function(x){return x.id===id;});
+  if(!r) return;
+  var url=location.href.split('?')[0]+'?bundle='+encodeURIComponent(id);
+  var line1=r.wood+' · '+r.supplier;
+  var line2=r.thick+'mm'+(r.L?' × '+r.L+'mm':'')+(r.W?' × '+r.W+'mm':'');
+  var line3=r.grade||'';
+  showQROptions(id,line1,line2,line3,url);
+}
+
+function printSteelQR(code){
+  var r=steelStock.find(function(x){return x.code===code;});
+  if(!r) return;
+  var url=location.href.split('?')[0]+'?steel='+encodeURIComponent(code);
+  var line1=r.type+(r.supplier?' · '+r.supplier:'');
+  var line2=r.desc;
+  showQROptions(code,line1,line2,'',url);
 }
 
 /* ── SENT EMAILS ── */
@@ -2945,7 +3091,7 @@ function renderRules(){
     html+='<tr style="'+(low?'background:var(--red-soft)':'')+'">'
       +'<td><span class="wpill '+pillClass(g.wood)+'"><span class="dot"></span>'+g.wood+'</span></td>'
       +'<td><span class="dim">'+g.thick+'mm</span></td>'
-      +'<td><span class="dim">'+(g.W?g.W+'×'+g.L+'mm':'—')+'</span></td>'
+      +'<td><span class="dim">'+(g.W&&g.L?g.W+'×'+g.L+'mm':g.L?g.L+'mm':g.W?g.W+'mm':'—')+'</span></td>'
       +'<td style="font-size:11px;color:var(--ink-3)">'+g.bundles+'</td>'
       +'<td style="font-weight:600;color:'+(low?'var(--red)':'var(--ink)')+'">'+curStr+'</td>'
       +'<td><input type="number" data-key="'+k+'" data-field="minVal" value="'+minVal+'" min="0" step="0.01" style="'+iw+'"></td>'
@@ -2976,7 +3122,8 @@ function renderSteelRules(){
       '<td><span class="bnr">'+r.code+'</span></td>'+
       '<td style="font-size:13px">'+r.desc+'</td>'+
       '<td><span class="dim">'+r.type+(r.supplier?' · <span class="sup">'+r.supplier+'</span>':'')+'</span></td>'+
-      '<td style="font-weight:600;color:'+(low?'var(--red)':'var(--ink)')+'">'+r.qty+' L</td>'+
+      '<td><input type="number" data-code-length="'+r.code.replace(/"/g,'&quot;')+'" value="'+(r.length||3)+'" min="0" step="0.01" placeholder="3.00" style="'+iw+'"> m</td>'+
+      '<td style="font-weight:600;color:'+(low?'var(--red)':'var(--ink)')+'">'+r.qty+' lgths</td>'+
       '<td><input type="number" data-code="'+r.code.replace(/"/g,'&quot;')+'" value="'+(r.minQty||0)+'" min="0" placeholder="0" style="'+iw+'"></td>'+
       '<td>'+unitSel+'</td>'+
       '<td><div style="display:flex;align-items:center;gap:3px"><span style="color:var(--ink-3);font-size:12px">R</span><input type="text" data-code-price="'+r.code.replace(/"/g,'&quot;')+'" value="'+costVal+'" placeholder="0.00" style="'+iw+'"></div></td>'+
@@ -2998,6 +3145,12 @@ function saveSteelRules(){
     var code=inp.getAttribute('data-code-price');
     var r=steelStock.find(function(x){return x.code===code;});
     if(r) r.cost='R '+inp.value.replace(/^R\s*/,'').trim();
+  });
+  var lengthInputs=document.querySelectorAll('#steel-rules-tbody input[data-code-length]');
+  lengthInputs.forEach(function(inp){
+    var code=inp.getAttribute('data-code-length');
+    var r=steelStock.find(function(x){return x.code===code;});
+    if(r) r.length=parseFloat(inp.value)||3;
   });
   var orderInputs=document.querySelectorAll('#steel-rules-tbody input[data-code-order]');
   orderInputs.forEach(function(inp){
@@ -3162,6 +3315,7 @@ function renderOrders(){
       +'<th class="ord-th r">Minimum</th>'
       +'<th class="ord-th r">Order qty</th>'
       +'<th class="ord-th">Send to email</th>'
+      +'<th class="ord-th">Unit price</th>'
       +'<th class="ord-th r">Done</th>'
       +'</tr></thead>';
     var tbody=document.createElement('tbody');
@@ -3217,23 +3371,40 @@ function renderOrders(){
 
       // Per-item email cell — pre-filled from supplier, editable
       var td5=document.createElement('td');
-      var savedItemEmail=orderedItems[g.key+'_email']||getEmailFor(g.supplier)||'';
+      var autoEmail='';
+      if(g.isSteelItem){
+        // For steel: look up by the steel item's actual supplier field
+        var si=steelStock.find(function(x){return x.code===g.steelCode;});
+        var actualSup=si?si.supplier:'';
+        autoEmail=orderedItems[g.key+'_email']||getEmailForSteel(actualSup)||getEmailForSteel(g.supplier)||'';
+      } else {
+        autoEmail=orderedItems[g.key+'_email']||getEmailFor(g.supplier)||'';
+      }
       var emailInp=document.createElement('input');
       emailInp.type='email';
       emailInp.id='oemail-'+safeKey;
-      emailInp.value=savedItemEmail;
+      emailInp.value=autoEmail;
       emailInp.placeholder='email@supplier.com';
       emailInp.style.cssText='border:1px solid var(--hairline-2);border-radius:8px;padding:5px 9px;font:inherit;font-size:12px;background:var(--surface-2);color:var(--ink);outline:none;width:190px';
       emailInp.addEventListener('click',function(e){e.stopPropagation();});
-      emailInp.addEventListener('input',function(){
-        // Save immediately to memory so re-renders don't lose it
-        orderedItems[g.key+'_email']=this.value;
-      });
-      emailInp.addEventListener('change',function(){
-        orderedItems[g.key+'_email']=this.value;
-        saveOrdered();
-      });
+      emailInp.addEventListener('input',function(){orderedItems[g.key+'_email']=this.value;});
+      emailInp.addEventListener('change',function(){orderedItems[g.key+'_email']=this.value;saveOrdered();});
       td5.appendChild(emailInp);
+
+      // Price cell — editable before sending
+      var td5b=document.createElement('td');
+      var savedPrice=orderedItems[g.key+'_price']||(g.isSteelItem
+        ?(function(){var si=steelStock.find(function(x){return x.code===g.steelCode;});return si?si.cost:'';}())
+        :(rules[g.key]&&rules[g.key].price?'R '+rules[g.key].price:''))||'';
+      var priceInp=document.createElement('input');
+      priceInp.type='text';
+      priceInp.id='oprice-'+safeKey;
+      priceInp.value=savedPrice;
+      priceInp.placeholder='R 0.00';
+      priceInp.style.cssText='border:1px solid var(--hairline-2);border-radius:8px;padding:5px 9px;font:inherit;font-size:12px;background:var(--surface-2);color:var(--ink);outline:none;width:90px';
+      priceInp.addEventListener('click',function(e){e.stopPropagation();});
+      priceInp.addEventListener('input',function(){orderedItems[g.key+'_price']=this.value;});
+      td5b.appendChild(priceInp);
 
       // Done cell
       var td6=document.createElement('td');
@@ -3244,7 +3415,7 @@ function renderOrders(){
       doneBtn.addEventListener('click',function(e){e.stopPropagation();markOrdered(g.key);});
       td6.appendChild(doneBtn);
 
-      tr.appendChild(td1);tr.appendChild(td2);tr.appendChild(td3);tr.appendChild(td4);tr.appendChild(td5);tr.appendChild(td6);
+      tr.appendChild(td1);tr.appendChild(td2);tr.appendChild(td3);tr.appendChild(td4);tr.appendChild(td5);tr.appendChild(td5b);tr.appendChild(td6);
       tr.addEventListener('click',function(){toggleRowSel(g.key,tr,g.isLow);});
       tbody.appendChild(tr);
     });
@@ -3303,8 +3474,10 @@ function buildOrderHTML(grp,supplier,isSteel){
     var dims=isSteel?g.steelType:[g.thick+'mm',g.W?g.W+'mm':'',g.L?g.L+'mm':''].filter(Boolean).join(' × ');
     var unit=isSteel?'length':(rules[g.key]&&rules[g.key].unit?rules[g.key].unit:(g.isBoard?'sheets':'m³'));
     var steelItem=isSteel?steelStock.find(function(x){return x.code===g.steelCode;}):null;
-    var rawPrice=isSteel?(steelItem&&steelItem.cost?steelItem.cost:''):(rules[g.key]&&rules[g.key].price?rules[g.key].price:'');
-    var price=rawPrice?'R '+rawPrice.replace(/^R\s*/,''):'—';
+    // Read price from editable field in checklist, fall back to saved price
+    var priceInp=document.getElementById('oprice-'+safeKey);
+    var rawPrice=priceInp?priceInp.value.trim():(orderedItems[g.key+'_price']||(isSteel?(steelItem&&steelItem.cost?steelItem.cost:''):(rules[g.key]&&rules[g.key].price?'R '+rules[g.key].price:''))||'');
+    var price=rawPrice||'—';
     var qtyStr=oqty+' '+unit+(oqty!==1&&unit!=='pcs'?'s':'');
     return '<tr>'+
       '<td style="padding:10px 14px;border-bottom:1px solid #e8e4dc;font-weight:500;color:#1a1d24">'+g.wood+'</td>'+
@@ -3427,15 +3600,12 @@ function handleCSV(input){
   var file=input.files[0];
   if(!file) return;
   var reader=new FileReader();
-  reader.onload=function(e){
-    var text=e.target.result.replace(/^\uFEFF/,''); // strip BOM
+  reader.onload=async function(e){
+    var text=e.target.result.replace(/^\uFEFF/,'');
     var lines=text.split('\n').map(function(l){return l.replace(/\r/,'');}).filter(Boolean);
     if(lines.length<2){showCSVResult('No data found in CSV','warn');return;}
 
-    var rawHeaders=parseCSVLine(lines[0]);
-    // Map your actual column names to what the app needs
-    var headers=rawHeaders.map(function(h){return h.toLowerCase().trim();});
-    // Column index finder
+    var headers=parseCSVLine(lines[0]).map(function(h){return h.toLowerCase().trim();});
     function col(names){
       for(var i=0;i<names.length;i++){
         var idx=headers.indexOf(names[i].toLowerCase());
@@ -3443,7 +3613,7 @@ function handleCSV(input){
       }
       return -1;
     }
-    var iID=col(['newno','id','bundleid','bundle id']);
+    var iID=col(['newno','id','bundleid','bundle id','bundel']);
     var iWood=col(['hout','wood','woodtype','wood type']);
     var iSup=col(['verskaffer','supplier']);
     var iGrade=col(['houtgraad','grade']);
@@ -3460,15 +3630,22 @@ function handleCSV(input){
       return;
     }
 
-    var added=0,updated=0,errors=0,skipped=0;
-    var receivedKeys=[];
+    // Parse all rows from CSV first
+    var newStock=[];
+    var seen={};
+    var skipped=0;
 
     for(var i=1;i<lines.length;i++){
       var vals=parseCSVLine(lines[i]);
-      if(vals.every(function(v){return !v;})) continue; // skip empty rows
+      if(vals.every(function(v){return !v;})) continue;
 
-      var id=(vals[iID]||'').trim().toUpperCase();
+      // Clean and uppercase ID — strip spaces
+      var id=(vals[iID]||'').trim().toUpperCase().replace(/\s+/g,'');
       if(!id){skipped++;continue;}
+
+      // Skip duplicate IDs in same CSV — keep first occurrence
+      if(seen[id]){skipped++;continue;}
+      seen[id]=true;
 
       var qty=parseInt(vals[iQty])||0;
       var thick=iThick>=0?parseFloat(vals[iThick])||0:0;
@@ -3481,35 +3658,39 @@ function handleCSV(input){
       var dateIn=iDate>=0?(vals[iDate]||'').trim():'';
       var location=iLoc>=0?(vals[iLoc]||'').trim():'';
 
-      var existing=stock.find(function(r){return r.id===id;});
-      if(existing){
-        // Update qty — replace with new value from CSV, don't add
-        existing.qty=qty;
-        existing.orig=Math.max(existing.orig||0,qty);
-        if(location) existing.location=location;
-        if(dateIn) existing.dateIn=dateIn;
-        updated++;
-      } else {
-        if(qty<=0&&m3<=0){skipped++;continue;} // skip zero-qty new items
-        stock.push({
-          id:id,wood:wood,supplier:supplier,grade:grade,
-          thick:thick,L:L,W:W,qty:qty,orig:qty,
-          m3:m3,dateIn:dateIn||new Date().toLocaleDateString('en-ZA'),
-          location:location,reorderPoint:0
-        });
-        added++;
-      }
-      receivedKeys.push(wood+'|'+supplier+'|'+thick+'|'+W+'|'+L);
+      // Skip only if both qty AND m3 are zero
+      if(qty<=0&&m3<=0){skipped++;continue;}
+      // For solid wood with no qty, set qty=1 so it shows in stock
+      var isBoard=grade.toLowerCase().includes('board')||grade.toLowerCase()==='bd'||grade.toLowerCase()==='hpl';
+      if(qty<=0&&m3>0&&!isBoard) qty=1;
+
+      newStock.push({
+        id:id,wood:wood,supplier:supplier,grade:grade,
+        thick:thick,L:L,W:W,qty:qty,orig:qty,
+        m3:m3,dateIn:dateIn||new Date().toLocaleDateString('en-ZA'),
+        location:location,reorderPoint:0
+      });
     }
 
-    saveStock();
-    receivedKeys.forEach(function(k){delete orderedItems[k];});
-    saveOrdered();
-    addLog('receive','','CSV import: '+added+' added, '+updated+' updated'+(skipped?' ('+skipped+' skipped)':''),'');
+    if(!newStock.length){showCSVResult('No valid rows found in CSV.','warn');return;}
+
+    // Confirm replace if stock already exists
+    if(stock.length>0){
+      if(!confirm('This will REPLACE all '+stock.length+' existing bundles with '+newStock.length+' bundles from the CSV.\n\nUpload twice = same result, no duplicates.\n\nContinue?')) return;
+    }
+
+    // Clear Supabase and replace with new stock
+    showCSVResult('Uploading '+newStock.length+' bundles…','ok');
+    await sb.from('wood_stock').delete().neq('id','__none__'); // delete all
+    var rows=newStock.map(function(r){return {id:r.id,wood:r.wood,supplier:r.supplier,grade:r.grade,thick:r.thick,l:r.L,w:r.W,qty:r.qty,orig:r.orig,m3:r.m3,location:r.location||'',date_in:r.dateIn,reorder_point:r.reorderPoint||0};});
+    await sb.from('wood_stock').insert(rows);
+
+    stock=newStock;
+    addLog('receive','','CSV import: '+newStock.length+' bundles loaded'+(skipped?' ('+skipped+' skipped)':''),'');
     initFilters();
     renderStock();
     updateOrderBadge();
-    showCSVResult('Done! '+added+' new bundles added, '+updated+' updated.'+(skipped?' '+skipped+' rows skipped.':'')+(errors>0?' '+errors+' errors.':''),'ok');
+    showCSVResult('Done! '+newStock.length+' bundles loaded.'+(skipped?' '+skipped+' rows skipped.':''),'ok');
     input.value='';
   };
   reader.readAsText(file);
@@ -3615,7 +3796,7 @@ function renderSteelStock(){
     '<div class="stat navy"><div class="sl">Items</div><div class="sv">'+steelStock.length+'</div><div class="sd">steel profiles</div></div>'+
     '<div class="stat teal"><div class="sl">In stock</div><div class="sv">'+steelStock.filter(function(r){return r.qty>0;}).length+'</div><div class="sd">items with qty</div></div>'+
     '<div class="stat green"><div class="sl">Total lengths</div><div class="sv">'+totalPcs.toLocaleString()+'</div><div class="sd">3m pieces</div></div>'+
-    '<div class="stat amber"><div class="sl">Low stock</div><div class="sv">'+lowCount+'</div><div class="sd">below minimum</div></div>';
+    '<div class="stat amber" onclick="openLowModal()" style="cursor:pointer"><div class="sl">Low stock</div><div class="sv">'+lowCount+'</div><div class="sd">tap to see details →</div></div>';
   sl.forEach(function(r){
     if(r.type!==lastType){
       var gcnt=rows.filter(function(x){return x.type===r.type;}).length;
@@ -3632,10 +3813,12 @@ function renderSteelStock(){
       '<td>'+supHtml+'</td>'+
       '<td><span class="dim">'+r.type+'</span></td>'+
       '<td><span class="dim">'+r.kgpm+'</span></td>'+
-      '<td class="qty-cell"><span class="qnum" style="color:'+qc+'">'+r.qty+'</span><span style="font-size:10px;color:var(--ink-3);margin-left:2px">L</span></td>'+
-      '<td><span class="dim">'+(r.minQty>0?r.minQty+' L':'—')+'</span></td>'+
+      '<td><span class="dim">'+(r.length?r.length.toFixed(2)+'m':'—')+'</span></td>'+
+      '<td class="qty-cell"><span class="qnum" style="color:'+qc+'">'+r.qty+'</span><span style="font-size:10px;color:var(--ink-3);margin-left:2px">lgths</span></td>'+
+      '<td><span class="dim">'+(r.minQty>0?r.minQty+' lgths':'—')+'</span></td>'+
       '<td><span class="dim">'+r.price+'</span></td>'+
       '<td><button class="edit-btn" onclick="openSteelDetail(\''+safeCode+'\')"><svg width="11" height="11"><use href="#i-edit"/></svg></button>'+
+          '<button class="edit-btn" onclick="printSteelQR(\''+safeCode+'\')" title="Print QR"><svg width="11" height="11"><use href="#i-qr"/></svg></button>'+
           '<button class="book-btn" onclick="quickSteelBook(\''+safeCode+'\')"><svg><use href="#i-arrow"/></svg>Book out</button></td>'+
     '</tr>';
   });
@@ -3675,7 +3858,7 @@ function openSteelDetail(code){
   var safeCode=r.code.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
   document.getElementById('steel-modal-body').innerHTML=
     '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;border:1px solid var(--hairline);border-radius:12px;overflow:hidden;background:var(--hairline);margin-bottom:12px">'+
-    '<div style="background:var(--surface-2);padding:12px 14px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-3)">Qty in stock</div><div style="font-size:22px;font-weight:700;color:'+qc+'">'+r.qty+'<span style="font-size:12px;color:var(--ink-3);font-weight:500"> L</span></div></div>'+
+    '<div style="background:var(--surface-2);padding:12px 14px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-3)">Qty in stock</div><div style="font-size:22px;font-weight:700;color:'+qc+'">'+r.qty+'<span style="font-size:12px;color:var(--ink-3);font-weight:500"> lgths</span></div></div>'+
     '<div style="background:var(--surface-2);padding:12px 14px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-3)">Min qty</div><div style="font-size:22px;font-weight:700;color:var(--ink)">'+(r.minQty||'—')+'</div></div>'+
     '<div style="background:var(--surface-2);padding:12px 14px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-3)">kg/m</div><div style="font-size:22px;font-weight:700;color:var(--ink)">'+r.kgpm+'</div></div>'+
     '<div style="background:var(--surface-2);padding:12px 14px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-3)">Supplier</div>'+
