@@ -1763,7 +1763,7 @@ async function loadData(){
 // Map DB rows to app format
 function dbToWood(r){return {id:r.id,wood:r.wood,supplier:r.supplier,grade:r.grade,thick:r.thick,L:r.l,W:r.w,qty:r.qty,orig:r.orig,m3:r.m3,location:r.location,dateIn:r.date_in,reorderPoint:r.reorder_point||0};}
 function dbToWoodLog(r){return {id:r.id,time:r.time,type:r.type,bundle:r.bundle,detail:r.detail,note:r.note,user:r.username};}
-function dbToSteel(r){return {code:r.code,desc:r.description,type:r.type,supplier:r.supplier||'',kgpm:r.kgpm,price:r.price,cost:r.cost,qty:r.qty,minQty:r.min_qty||0,length:r.length||3,orderQty:r.order_qty||0};}
+function dbToSteel(r){return {code:r.code,desc:r.description,type:r.type,supplier:r.supplier||'',kgpm:r.kgpm,price:r.price,cost:r.cost,qty:r.qty,minQty:r.min_qty||0,length:r.length||6,orderQty:r.order_qty||0};}
 function dbToSteelLog(r){return {id:r.id,time:r.time,type:r.type,code:r.code,detail:r.detail,note:r.note,user:r.username};}
 
 async function saveStock(){
@@ -3419,7 +3419,7 @@ function renderSteelRules(){
       '<td><span class="bnr">'+r.code+'</span></td>'+
       '<td style="font-size:13px">'+r.desc+'</td>'+
       '<td><span class="dim">'+r.type+(r.supplier?' · <span class="sup">'+r.supplier+'</span>':'')+'</span></td>'+
-      '<td><input type="number" data-code-length="'+r.code.replace(/"/g,'&quot;')+'" value="'+(r.length||3)+'" min="0" step="0.01" placeholder="3.00" style="'+iw+'"> m</td>'+
+      '<td><input type="number" data-code-length="'+r.code.replace(/"/g,'&quot;')+'" value="'+(r.length||6)+'" min="0" step="0.01" placeholder="3.00" style="'+iw+'"> m</td>'+
       '<td style="font-weight:600;color:'+(low?'var(--red)':'var(--ink)')+'">'+r.qty+' lgths</td>'+
       '<td><input type="number" data-code="'+r.code.replace(/"/g,'&quot;')+'" value="'+(r.minQty||0)+'" min="0" placeholder="0" style="'+iw+'"></td>'+
       '<td>'+unitSel+'</td>'+
